@@ -49,7 +49,6 @@ function wrapper(plugin_info) {
 
         function selectFirstPortal() {
             log('First portal selected');
-            toggleMenu();
 
             firstPortal = getPortalSelected();
             if (!firstPortal) return;
@@ -60,7 +59,6 @@ function wrapper(plugin_info) {
         function selectSecondPortal() {
             var latlngs;
             log('Second portal selected');
-            toggleMenu();
 
             secondPortal = getPortalSelected();
             if (!secondPortal) return;
@@ -71,7 +69,6 @@ function wrapper(plugin_info) {
         function selectOtherPortal() {
             var portal;
             log('Other portal selected');
-            toggleMenu();
 
             portal = getPortalSelected();
             if (!portal) return;
