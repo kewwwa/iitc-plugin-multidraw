@@ -3,7 +3,7 @@
 // @name           IITC plugin: Multi draw
 // @description    Draw multiple links
 // @category       Layer
-// @version        0.1
+// @version        0.1.1
 // @namespace      https://github.com/kewwwa/iitc-plugin-multidraw
 // @include        https://*.ingress.com/intel*
 // @include        http://*.ingress.com/intel*
