@@ -3,7 +3,7 @@
 // @name           IITC plugin: Multi draw
 // @description    Draw multiple links
 // @category       Layer
-// @version        0.1.2
+// @version        0.1.3
 // @namespace      https://github.com/kewwwa/iitc-plugin-multidraw
 // @include        https://*.ingress.com/intel*
 // @include        http://*.ingress.com/intel*
@@ -86,6 +86,12 @@ function wrapper(plugin_info) {
 
         function draw(portal) {
             var latlngs;
+            let round = (num, accuracy) => Math.round(num*Math.pow(10,accuracy))/Math.pow(10,accuracy);
+            let lleq = (l1, l2) => round(l1.lat,5) === round(l2.lat,5) && round(l1.lng,5) === round(l2.lng,5); //are latlngs equal
+            let polylineeq = (ll1, ll2) => ll1.length === ll2.length
+                                        && (ll1.every((_,i) => lleq(ll1[i], ll2[i])) || ll1.slice().reverse().every((_,i) => lleq(ll1[i], ll2[i])))
+            // polyline compare. must have the same amount of points and nth point must be equal to nth point of secont polyline
+            // or the same but one polyline is reversed
 
             if (!(firstPortal && secondPortal)) return;
 
@@ -93,6 +99,15 @@ function wrapper(plugin_info) {
             latlngs.push(firstPortal.ll);
             if (portal) latlngs.push(portal.ll);
             latlngs.push(secondPortal.ll);
+
+            let foundSame = false;
+            window.plugin.drawTools.drawnItems.eachLayer( function(layer) {
+                if (layer instanceof L.GeodesicPolyline || layer instanceof L.Polyline) {
+                    if (foundSame) return;
+                    foundSame = polylineeq(layer._latlngs, latlngs);
+                }
+            });
+            if (foundSame) return;
 
             window.map.fire('draw:created', {
                 layer: L.geodesicPolyline(latlngs, window.plugin.drawTools.lineOptions),
