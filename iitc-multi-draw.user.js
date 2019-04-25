@@ -3,7 +3,7 @@
 // @name           IITC plugin: Multi draw
 // @description    Draw multiple links
 // @category       Layer
-// @version        0.1.1
+// @version        0.1.3
 // @namespace      https://github.com/kewwwa/iitc-plugin-multidraw
 // @include        https://*.ingress.com/intel*
 // @include        http://*.ingress.com/intel*
@@ -25,6 +25,8 @@ function wrapper(plugin_info) {
     //END PLUGIN AUTHORS NOTE
 
     // PLUGIN START ////////////////////////////////////////////////////////
+    var firstPortalLink, secondPortalLink;
+
     var setup = (function (window, undefined) {
         'use strict';
 
@@ -39,19 +41,24 @@ function wrapper(plugin_info) {
         return plugin.setup;
 
         function toggleMenu() {
-            if (actions.classList.contains("active")) {
+            if (actions.classList.contains("active"))
                 actions.classList.remove("active");
-            }
-            else {
+            else
                 actions.classList.add("active");
-            }
         }
 
+        function clear() {
+            firstPortal = false;
+            secondPortal = false;
+            if (firstPortalLink.classList.contains('highlighted')) firstPortalLink.classList.remove('highlighted');
+            if (secondPortalLink.classList.contains('highlighted')) secondPortalLink.classList.remove('highlighted');
+        }
         function selectFirstPortal() {
             log('First portal selected');
 
             firstPortal = getPortalSelected();
             if (!firstPortal) return;
+            if (!firstPortalLink.classList.contains('highlighted')) firstPortalLink.classList.add('highlighted');
 
             draw();
         }
@@ -62,6 +69,7 @@ function wrapper(plugin_info) {
 
             secondPortal = getPortalSelected();
             if (!secondPortal) return;
+            if (!secondPortalLink.classList.contains('highlighted')) secondPortalLink.classList.add('highlighted');
 
             draw();
         }
@@ -78,6 +86,12 @@ function wrapper(plugin_info) {
 
         function draw(portal) {
             var latlngs;
+            let round = (num, accuracy) => Math.round(num*Math.pow(10,accuracy))/Math.pow(10,accuracy);
+            let lleq = (l1, l2) => round(l1.lat,5) === round(l2.lat,5) && round(l1.lng,5) === round(l2.lng,5); //are latlngs equal
+            let polylineeq = (ll1, ll2) => ll1.length === ll2.length
+                                        && (ll1.every((_,i) => lleq(ll1[i], ll2[i])) || ll1.slice().reverse().every((_,i) => lleq(ll1[i], ll2[i])))
+            // polyline compare. must have the same amount of points and nth point must be equal to nth point of secont polyline
+            // or the same but one polyline is reversed
 
             if (!(firstPortal && secondPortal)) return;
 
@@ -85,6 +99,15 @@ function wrapper(plugin_info) {
             latlngs.push(firstPortal.ll);
             if (portal) latlngs.push(portal.ll);
             latlngs.push(secondPortal.ll);
+
+            let foundSame = false;
+            window.plugin.drawTools.drawnItems.eachLayer( function(layer) {
+                if (layer instanceof L.GeodesicPolyline || layer instanceof L.Polyline) {
+                    if (foundSame) return;
+                    foundSame = polylineeq(layer._latlngs, latlngs);
+                }
+            });
+            if (foundSame) return;
 
             window.map.fire('draw:created', {
                 layer: L.geodesicPolyline(latlngs, window.plugin.drawTools.lineOptions),
@@ -112,11 +135,14 @@ function wrapper(plugin_info) {
         function setup() {
             var parent, control, section, toolbar,
                 button,
-                firstPortal, secondPortal, otherPortal,
-                firstPortalLink, secondPortalLink, otherPortalLink;
+                clearLi, firstPortalLi, secondPortalLi, otherPortalLi,
+                clearLink, /*firstPortalLink, secondPortalLink are visible globally*/ otherPortalLink;
 
             $('<style>').prop('type', 'text/css')
                 .html('.leaflet-draw-actions.active{display: block;}.leaflet-control-multidraw a.leaflet-multidraw-edit-edit {background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+Cgk8ZyBzdHlsZT0iZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eTowLjQ7c3Ryb2tlOm5vbmUiPgoJCTxwYXRoIGQ9Ik0gNiwyNCAyNCwyNCAxNSw2IHoiLz4KCQk8cGF0aCBkPSJNIDYsMjQgMjQsMjQgMTUsMTIgeiIvPgoJCTxwYXRoIGQ9Ik0gNiwyNCAyNCwyNCAxNSwxOCB6Ii8+Cgk8L2c+Cjwvc3ZnPgo=");}')
+                .appendTo('head');
+            $('<style>').prop('type', 'text/css')
+                .html('.multidraw.highlighted{background-color:#008902}')
                 .appendTo('head');
 
             button = document.createElement("a");
@@ -128,32 +154,42 @@ function wrapper(plugin_info) {
             toolbar.className = "leaflet-draw-toolbar leaflet-bar";
             toolbar.appendChild(button);
 
+            clearLink = document.createElement("a");
+            clearLink.innerText = "X";
+            clearLink.title = 'Clear selected portals';
+            clearLink.addEventListener("click", clear, false);
+            clearLi = document.createElement("li");
+            clearLi.appendChild(clearLink);
+
             firstPortalLink = document.createElement("a");
+            firstPortalLink.className = "multidraw";
             firstPortalLink.innerText = "1";
             firstPortalLink.title = 'Select first portal';
             firstPortalLink.addEventListener("click", selectFirstPortal, false);
-            firstPortal = document.createElement("li");
-            firstPortal.appendChild(firstPortalLink);
+            firstPortalLi = document.createElement("li");
+            firstPortalLi.appendChild(firstPortalLink);
 
             secondPortalLink = document.createElement("a");
+            secondPortalLink.className = "multidraw";
             secondPortalLink.innerText = "2";
             secondPortalLink.title = 'Select second portal';
             secondPortalLink.addEventListener("click", selectSecondPortal, false);
-            secondPortal = document.createElement("li");
-            secondPortal.appendChild(secondPortalLink);
+            secondPortalLi = document.createElement("li");
+            secondPortalLi.appendChild(secondPortalLink);
 
             otherPortalLink = document.createElement("a");
             otherPortalLink.innerText = "N";
             otherPortalLink.title = 'Select other portal';
             otherPortalLink.addEventListener("click", selectOtherPortal, false);
-            otherPortal = document.createElement("li");
-            otherPortal.appendChild(otherPortalLink);
+            otherPortalLi = document.createElement("li");
+            otherPortalLi.appendChild(otherPortalLink);
 
             actions = document.createElement("ul");
             actions.className = "leaflet-draw-actions leaflet-draw-actions-top";
-            actions.appendChild(firstPortal);
-            actions.appendChild(secondPortal);
-            actions.appendChild(otherPortal);
+            actions.appendChild(clearLi);
+            actions.appendChild(firstPortalLi);
+            actions.appendChild(secondPortalLi);
+            actions.appendChild(otherPortalLi);
 
             section = document.createElement("div");
             section.className = "leaflet-draw-section";
